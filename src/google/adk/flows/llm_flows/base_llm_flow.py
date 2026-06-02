@@ -39,6 +39,8 @@ from ...agents.run_config import StreamingMode
 from ...auth.auth_tool import AuthConfig
 from ...events.event import Event
 from ...models.base_llm_connection import BaseLlmConnection
+from ...models.google_llm import Gemini
+from ...models.google_llm import GoogleLLMVariant
 from ...models.llm_request import LlmRequest
 from ...models.llm_response import LlmResponse
 from ...telemetry import tracing
