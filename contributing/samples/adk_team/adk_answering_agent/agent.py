@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from adk_answering_agent.gemini_assistant.agent import root_agent as gemini_assistant_agent
+# PoC modification: VertexAiSearchTool and gemini_assistant removed to isolate
+# GitHub write-path from GCP dependencies. write tools preserved as-is.
 from adk_answering_agent.settings import BOT_RESPONSE_LABEL
 from adk_answering_agent.settings import IS_INTERACTIVE
 from adk_answering_agent.settings import OWNER
 from adk_answering_agent.settings import REPO
-from adk_answering_agent.settings import VERTEXAI_DATASTORE_ID
 from adk_answering_agent.tools import add_comment_to_discussion
 from adk_answering_agent.tools import add_label_to_discussion
-from adk_answering_agent.tools import convert_gcs_links_to_https
 from adk_answering_agent.tools import get_discussion_and_comments
 from google.adk.agents.llm_agent import Agent
-from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools.vertex_ai_search_tool import VertexAiSearchTool
 
 if IS_INTERACTIVE:
   APPROVAL_INSTRUCTION = (
@@ -38,81 +35,46 @@ else:
 
 
 root_agent = Agent(
-    model="gemini-3.5-flash",
+    model="gemini-2.0-flash",
     name="adk_answering_agent",
     description="Answer questions about ADK repo.",
     instruction=f"""
-You are a helpful assistant that responds to questions from the GitHub repository `{OWNER}/{REPO}`
-based on information about Google ADK found in the document store. You can access the document store
-using the `VertexAiSearchTool`.
+You are a helpful assistant that responds to questions posted in the GitHub repository `{OWNER}/{REPO}`.
 
 Here are the steps to help answer GitHub discussions:
 
 1. **Determine data source**:
    * If the user has provided complete discussion JSON data in the prompt,
-     use that data directly.
+     use that data directly (including the `node_id` field for discussion identification).
    * If the user only provided a discussion number, use the
      `get_discussion_and_comments` tool to fetch the discussion details.
 
 2. **Analyze the discussion**:
-   * Focus on the latest comment but reference all comments if needed to
-     understand the context.
-   * If there is no comment at all, focus on the discussion title and body.
+   * Focus on the title and body to understand the question.
+   * Check if the discussion is open and unanswered.
 
 3. **Decide whether to respond**:
-   * If all the following conditions are met, try to add a comment to the
-     discussion; otherwise, do not respond:
+   * If all the following conditions are met, add a comment; otherwise do not respond:
      - The discussion is not closed.
-     - The latest comment is not from you or other agents (marked as
-       "Response from XXX Agent").
-     - The discussion is asking a question or requesting information.
-     - The discussion is about ADK or related topics.
+     - The latest comment is not from you or another agent (marked "Response from XXX Agent").
+     - The discussion contains a question or request for information.
 
-4. **Research the answer**:
-   * Use the `VertexAiSearchTool` to find relevant information before answering.
-   * If you need information about Gemini API, ask the `gemini_assistant` agent
-     to provide the information and references.
-   * You can call the `gemini_assistant` agent with multiple queries to find
-     all the relevant information.
-
-5. **Post the response**:
-   * If you can find relevant information, use the `add_comment_to_discussion`
-     tool to add a comment to the discussion.
-   * If you post a comment, add the label "{BOT_RESPONSE_LABEL}" to the discussion
-     using the `add_label_to_discussion` tool.
+4. **Post the response**:
+   * Use the `add_comment_to_discussion` tool to post your answer.
+   * Use the `node_id` from the discussion data as `discussion_id`.
+   * After posting, add the label "{BOT_RESPONSE_LABEL}" using `add_label_to_discussion`.
 
 IMPORTANT:
   * {APPROVAL_INSTRUCTION}
-  * Your response should be based on the information you found in the document
-    store. Do not invent information that is not in the document store. Do not
-    invent citations which are not in the document store.
-  * **Be Objective**: your answer should be based on the facts you found in the
-    document store, do not be misled by user's assumptions or user's
-    understanding of ADK.
-  * If you can't find the answer or information in the document store,
-    **do not** respond.
-  * Start with a short summary of your response in the comment as a TLDR,
-    e.g. "**TLDR**: <your summary>".
-  * Have a divider line between the TLDR and your detail response.
-  * Please include your justification for your decision in your output
-    to the user who is telling with you.
-  * If you use citation from the document store, please provide a footnote
-    referencing the source document format it as: "[1] publicly accessible
-    HTTPS URL of the document".
-    * You **should always** use the `convert_gcs_links_to_https` tool to convert
-      GCS links (e.g. "gs://...") to HTTPS links.
-    * **Do not** use the `convert_gcs_links_to_https` tool for non-GCS links.
-    * Make sure the citation URL is valid. Otherwise, do not list this specific
-      citation.
+  * You may answer based on your general knowledge of ADK and Google AI.
+  * **Be Objective**: do not be misled by user's framing or assumptions.
   * Do not respond to any other discussion except the one specified by the user.
+  * Start your comment with a short TLDR: "**TLDR**: <summary>".
 
 """,
     tools=[
-        VertexAiSearchTool(data_store_id=VERTEXAI_DATASTORE_ID),
-        AgentTool(gemini_assistant_agent),
         get_discussion_and_comments,
         add_comment_to_discussion,
         add_label_to_discussion,
-        convert_gcs_links_to_https,
     ],
 )

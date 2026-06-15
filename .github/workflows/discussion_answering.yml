@@ -1,4 +1,4 @@
-name: ADK Answering Agent for Discussions
+name: ADK Answering Agent for Discussions (PoC Fork)
 
 on:
   discussion:
@@ -18,39 +18,38 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: 'google-github-actions/auth@v3'
-        with:
-          credentials_json: '${{ secrets.ADK_GCP_SA_KEY }}'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-adk google-cloud-discoveryengine
+          pip install google-adk requests python-dotenv
 
       - name: Run Answering Script
         env:
           GITHUB_TOKEN: ${{ secrets.ADK_TRIAGE_AGENT }}
-          ADK_GCP_SA_KEY: ${{ secrets.ADK_GCP_SA_KEY }}
-          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
-          GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
-          VERTEXAI_DATASTORE_ID: ${{ secrets.VERTEXAI_DATASTORE_ID }}
-          GEMINI_API_DATASTORE_ID: ${{ secrets.GEMINI_API_DATASTORE_ID }}
-          GOOGLE_GENAI_USE_VERTEXAI: 1
-          OWNER: 'google'
-          REPO: 'adk-python'
+          # GCP-dependent vars set to dummy values; VertexAiSearchTool removed from agent
+          ADK_GCP_SA_KEY: '{"type":"service_account","project_id":"poc-dummy","private_key_id":"dummy","private_key":"-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEApoc==\n-----END RSA PRIVATE KEY-----\n","client_email":"poc@poc-dummy.iam.gserviceaccount.com","client_id":"0","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
+          VERTEXAI_DATASTORE_ID: 'projects/poc-dummy/locations/global/collections/default_collection/dataStores/dummy/servingConfigs/default_config'
+          GEMINI_API_DATASTORE_ID: 'projects/poc-dummy/locations/global/collections/default_collection/dataStores/dummy2/servingConfigs/default_config'
+          GOOGLE_CLOUD_PROJECT: 'poc-dummy'
+          GOOGLE_CLOUD_LOCATION: 'us-central1'
+          # Real Gemini API auth (no Vertex AI)
+          GOOGLE_GENAI_USE_VERTEXAI: 0
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # Point to this fork, not google/adk-python
+          OWNER: 'herdiyana256'
+          REPO: 'adk-python-poc'
+          BOT_RESPONSE_LABEL: 'bot-poc'
           INTERACTIVE: 0
           PYTHONPATH: contributing/samples/adk_team
         run: |
-          # Write discussion data to temporary file to avoid secret masking issues
+          # Write discussion data to temp file (same pattern as original workflow)
           cat > /tmp/discussion.json << 'EOF'
           ${{ toJson(github.event.discussion) }}
           EOF
