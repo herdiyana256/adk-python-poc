@@ -1,0 +1,29 @@
+name: PoC Diagnostic - List Gemini Models
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  list-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List available Gemini models for this API key
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=${GOOGLE_API_KEY}" \
+            | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if 'models' not in data:
+    print('ERROR RESPONSE:', json.dumps(data, indent=2))
+else:
+    for m in data['models']:
+        name = m.get('name', '')
+        methods = m.get('supportedGenerationMethods', [])
+        if 'generateContent' in methods:
+            print(name)
+"
